@@ -7,6 +7,10 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 5000;
 
+// middlewars
+app.use(express.json());
+app.use(cors());
+
 // database
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.89rnkti.mongodb.net/?appName=Cluster0`;
 // console.log(uri);
@@ -21,14 +25,21 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server
     await client.connect();
+    // =================================================
+    const db = client.db('smartDealsDB');
+    const productsColl = db.collection('productsColl');
 
-    // Send a ping to confirm a successful connection
+    app.post('/products', async (req, res) => {
+      const newProduct = req.body;
+      const result = await productsColl.insertOne(newProduct);
+      res.send(result);
+    });
+
+    // =================================================
     await client.db('admin').command({ ping: 1 });
-    console.log('Pinged your deployment. You successfully connected to MongoDB!');
+    console.log('You successfully connected to MongoDB!');
   } finally {
-    // Ensures that the client will close when you finish/error
     // await client.close();
     console.log('finished client work');
   }
