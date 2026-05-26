@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 // instance
 const app = express();
@@ -13,7 +13,6 @@ app.use(cors());
 
 // database
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.89rnkti.mongodb.net/?appName=Cluster0`;
-// console.log(uri);
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -30,9 +29,41 @@ async function run() {
     const db = client.db('smartDealsDB');
     const productsColl = db.collection('productsColl');
 
+    // =================================================
+
+    app.get('/products', async (req, res) => {
+      const cursor = productsColl.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.get('/products/:id', async (req, res) => {
+      const query = { _id: new ObjectId(req.params.id) };
+      const result = await productsColl.findOne(query);
+      res.send(result);
+    });
+
     app.post('/products', async (req, res) => {
       const newProduct = req.body;
       const result = await productsColl.insertOne(newProduct);
+      res.send(result);
+    });
+
+    app.patch('/products/:id', async (req, res) => {
+      const query = { _id: new ObjectId(req.params.id) };
+      const update = {
+        $set: {
+          name: req.body.name,
+          price: req.body.price,
+        },
+      };
+      const result = await productsColl.updateOne(query, update);
+      res.send(result);
+    });
+
+    app.delete('/products/:id', async (req, res) => {
+      const query = { _id: new ObjectId(req.params.id) };
+      const result = await productsColl.deleteOne(query);
       res.send(result);
     });
 
