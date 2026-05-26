@@ -32,6 +32,12 @@ async function run() {
     // =================================================
 
     app.get('/products', async (req, res) => {
+      // const cursor = productsColl
+      //   .find()
+      //   .sort({ price_min: 1 })
+      //   .skip(10)
+      //   .limit(5)
+      //   .project({ title: 1, email: 1, _id: 0 });
       const cursor = productsColl.find();
       const result = await cursor.toArray();
       res.send(result);
