@@ -29,9 +29,22 @@ async function run() {
     const db = client.db('smartDealsDB');
     const productsColl = db.collection('productsColl');
     const bidsColl = db.collection('bidsColl');
+    const usersColl = db.collection('usersColl');
 
     // =================================================
+    app.post('/users', async (req, res) => {
+      const query = { email: req.body.email };
+      const existingUser = await usersColl.findOne(query);
+      if (existingUser) {
+        res.send({ message: 'user already exist' });
+      } else {
+        const newUser = req.body;
+        const result = await usersColl.insertOne(newUser);
+        res.send(result);
+      }
+    });
 
+    // =================================================
     app.get('/products', async (req, res) => {
       // const cursor = productsColl
       //   .find()
