@@ -64,6 +64,12 @@ async function run() {
       res.send(result);
     });
 
+    app.get('/products/recent', async (req, res) => {
+      const cursor = productsColl.find().sort({ created_at: -1 }).limit(6);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
     app.get('/products/:id', async (req, res) => {
       const query = { _id: new ObjectId(req.params.id) };
       const result = await productsColl.findOne(query);
