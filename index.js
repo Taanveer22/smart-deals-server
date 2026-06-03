@@ -6,11 +6,12 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const admin = require('firebase-admin');
 
 // firebase
+// guard: crash early with a clear message if env var is missing
+if (!process.env.FB_SERVICE_KEY) {
+  throw new Error('FB_SERVICE_KEY env variable is not set');
+}
 const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8');
 const serviceAccount = JSON.parse(decoded);
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
 
 // instance
 const app = express();
@@ -40,6 +41,9 @@ const verifyFirebaseToken = async (req, res, next) => {
 };
 
 // database
+if (!process.env.DB_USER || !process.env.DB_PASS) {
+  throw new Error('DB_USER or DB_PASS env variable is not set');
+}
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.89rnkti.mongodb.net/?appName=Cluster0`;
 
 const client = new MongoClient(uri, {
