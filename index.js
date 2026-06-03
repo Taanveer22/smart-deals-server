@@ -2,14 +2,34 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const admin = require('firebase-admin');
+const serviceAccount = require('./smart-deals-firebase-adminsdk.json');
 
 // instance
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 const app = express();
 const port = process.env.PORT || 5000;
 
 // middlewars
 app.use(express.json());
 app.use(cors());
+const verifyFirebaseToken = async (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res.status(401).send({ message: 'unauthorized access' });
+  }
+  const token = authorization.split(' ')[1];
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    console.log('inside fb token', decoded);
+    req.token_email = decoded.email;
+    next();
+  } catch (error) {
+    return res.status(401).send({ messgae: 'unauthorized access token' });
+  }
+};
 
 // database
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.89rnkti.mongodb.net/?appName=Cluster0`;
@@ -76,7 +96,8 @@ async function run() {
       res.send(result);
     });
 
-    app.post('/products', async (req, res) => {
+    app.post('/products', verifyFirebaseToken, async (req, res) => {
+      console.log('headers', req.headers);
       const newProduct = req.body;
       const result = await productsColl.insertOne(newProduct);
       res.send(result);
