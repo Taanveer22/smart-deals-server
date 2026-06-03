@@ -21,12 +21,16 @@ const verifyFirebaseToken = async (req, res, next) => {
     return res.status(401).send({ message: 'unauthorized access' });
   }
   const token = authorization.split(' ')[1];
+  console.log('token received:', token); // ← debug this
+
   try {
     const decoded = await admin.auth().verifyIdToken(token);
-    console.log('inside fb token', decoded);
+    console.log('full decoded', decoded);
+    console.log('decoded email:', decoded.email); // ← debug this
     req.token_email = decoded.email;
     next();
   } catch (error) {
+    console.log('token error:', error.message); // ← debug this
     return res.status(401).send({ messgae: 'unauthorized access token' });
   }
 };
@@ -65,21 +69,31 @@ async function run() {
     });
 
     // =================================================
-    app.get('/products', async (req, res) => {
+    app.get('/products', verifyFirebaseToken, async (req, res) => {
+      const email = req.query.email;
+      // console.log(email);
+      let query = {};
+
+      if (email) {
+        if (email !== req.token_email) {
+          return res.status(403).send({ message: 'forbidden access' });
+        }
+        query.seller_email = email;
+      }
+      // console.log(query);
+      const cursor = productsColl.find(query);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.get('/products/all', async (req, res) => {
       // const cursor = productsColl
       //   .find()
       //   .sort({ price_min: 1 })
       //   .skip(10)
       //   .limit(5)
       //   .project({ title: 1, email: 1, _id: 0 });
-      const email = req.query.email;
-      // console.log(email);
-      let query = {};
-      if (email) {
-        query.seller_email = email;
-      }
-      // console.log(query);
-      const cursor = productsColl.find(query);
+      const cursor = productsColl.find();
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -115,18 +129,21 @@ async function run() {
       res.send(result);
     });
 
-    app.delete('/products/:id', async (req, res) => {
+    app.delete('/products/:id', verifyFirebaseToken, async (req, res) => {
       const query = { _id: new ObjectId(req.params.id) };
       const result = await productsColl.deleteOne(query);
       res.send(result);
     });
 
     // =================================================
-    app.get('/bids', async (req, res) => {
+    app.get('/bids', verifyFirebaseToken, async (req, res) => {
       const email = req.query.email;
       // console.log(email);
       let query = {};
       if (email) {
+        if (email !== req.token_email) {
+          return res.status(403).send({ message: 'fobidden access' });
+        }
         query.buyer_email = email;
       }
       // console.log(query);
@@ -148,7 +165,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post('/bids', async (req, res) => {
+    app.post('/bids', verifyFirebaseToken, async (req, res) => {
       const newBid = req.body;
       const result = await bidsColl.insertOne(newBid);
       res.send(result);
@@ -166,7 +183,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete('/bids/:id', async (req, res) => {
+    app.delete('/bids/:id', verifyFirebaseToken, async (req, res) => {
       const query = { _id: new ObjectId(req.params.id) };
       const result = await bidsColl.deleteOne(query);
       res.send(result);
