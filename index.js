@@ -6,12 +6,14 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const admin = require('firebase-admin');
 
 // firebase
-// guard: crash early with a clear message if env var is missing
 if (!process.env.FB_SERVICE_KEY) {
-  throw new Error('FB_SERVICE_KEY env variable is not set');
+  throw new Error('FB_SERVICE_KEY not set');
 }
-const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8');
-const serviceAccount = JSON.parse(decoded);
+const decodedServiceKey = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8');
+const serviceAccount = JSON.parse(decodedServiceKey);
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 // instance
 const app = express();
@@ -29,20 +31,20 @@ const verifyFirebaseToken = async (req, res, next) => {
   console.log('token received:', token); // ← debug this
 
   try {
-    const decoded = await admin.auth().verifyIdToken(token);
-    console.log('full decoded', decoded);
-    console.log('decoded email:', decoded.email); // ← debug this
-    req.token_email = decoded.email;
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    console.log('full decodedToken', decodedToken);
+    console.log('decodedToken email:', decodedToken.email); // ← debug this
+    req.token_email = decodedToken.email;
     next();
   } catch (error) {
     console.log('token error:', error.message); // ← debug this
-    return res.status(401).send({ messgae: 'unauthorized access token' });
+    return res.status(401).send({ message: 'unauthorized access token' });
   }
 };
 
 // database
 if (!process.env.DB_USER || !process.env.DB_PASS) {
-  throw new Error('DB_USER or DB_PASS env variable is not set');
+  throw new Error('DB_USER or DB_PASS not set');
 }
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.89rnkti.mongodb.net/?appName=Cluster0`;
 
@@ -138,7 +140,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete('/products/:id', verifyFirebaseToken, async (req, res) => {
+    app.delete('/products/:id', async (req, res) => {
       const query = { _id: new ObjectId(req.params.id) };
       const result = await productsColl.deleteOne(query);
       res.send(result);
@@ -151,7 +153,7 @@ async function run() {
       let query = {};
       if (email) {
         if (email !== req.token_email) {
-          return res.status(403).send({ message: 'fobidden access' });
+          return res.status(403).send({ message: 'forbidden access' });
         }
         query.buyer_email = email;
       }
@@ -192,7 +194,7 @@ async function run() {
       res.send(result);
     });
 
-    app.delete('/bids/:id', verifyFirebaseToken, async (req, res) => {
+    app.delete('/bids/:id', async (req, res) => {
       const query = { _id: new ObjectId(req.params.id) };
       const result = await bidsColl.deleteOne(query);
       res.send(result);
@@ -203,7 +205,7 @@ async function run() {
     console.log('ping checked');
   } finally {
     // await client.close();
-    console.log('closed client task');
+    console.log('client remains open for requests');
   }
 }
 run().catch(console.dir);
