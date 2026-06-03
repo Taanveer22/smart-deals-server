@@ -1,14 +1,18 @@
+// packages
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const admin = require('firebase-admin');
-const serviceAccount = require('./smart-deals-firebase-adminsdk.json');
 
-// instance
+// firebase
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8');
+const serviceAccount = JSON.parse(decoded);
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
+
+// instance
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -49,6 +53,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     await client.connect();
+    console.log('db connected');
     // =================================================
     const db = client.db('smartDealsDB');
     const productsColl = db.collection('productsColl');
@@ -190,11 +195,11 @@ async function run() {
     });
 
     // =================================================
-    await client.db('admin').command({ ping: 1 });
-    console.log('You successfully connected to MongoDB!');
+    // await client.db('admin').command({ ping: 1 });
+    console.log('ping checked');
   } finally {
     // await client.close();
-    console.log('finished client work');
+    console.log('closed client task');
   }
 }
 run().catch(console.dir);
