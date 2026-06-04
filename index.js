@@ -9,6 +9,7 @@ const admin = require('firebase-admin');
 if (!process.env.FB_SERVICE_KEY) {
   throw new Error('FB_SERVICE_KEY not set');
 }
+
 const decodedServiceKey = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8');
 const serviceAccount = JSON.parse(decodedServiceKey);
 admin.initializeApp({
@@ -22,22 +23,26 @@ const port = process.env.PORT || 5000;
 // middlewars
 app.use(express.json());
 app.use(cors());
+
 const verifyFirebaseToken = async (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
     return res.status(401).send({ message: 'unauthorized access' });
   }
   const token = authorization.split(' ')[1];
-  console.log('token received:', token); // ← debug this
+  console.log('token received:', token);
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(token);
-    console.log('full decodedToken', decodedToken);
-    console.log('decodedToken email:', decodedToken.email); // ← debug this
-    req.token_email = decodedToken.email;
+    const userRecord = await admin.auth().getUser(decodedToken.uid);
+    req.token_email = decodedToken?.email || userRecord?.providerData[0]?.email;
+    // console.log('decoded token', decodedToken);
+    console.log('decoded token email', decodedToken?.email);
+    // console.log('user record', userRecord);
+    console.log('user record email', userRecord?.providerData[0]?.email);
     next();
   } catch (error) {
-    console.log('token error:', error.message); // ← debug this
+    console.log('token error:', error.message);
     return res.status(401).send({ message: 'unauthorized access token' });
   }
 };
@@ -46,6 +51,7 @@ const verifyFirebaseToken = async (req, res, next) => {
 if (!process.env.DB_USER || !process.env.DB_PASS) {
   throw new Error('DB_USER or DB_PASS not set');
 }
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.89rnkti.mongodb.net/?appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -82,7 +88,8 @@ async function run() {
     // =================================================
     app.get('/products', verifyFirebaseToken, async (req, res) => {
       const email = req.query.email;
-      // console.log(email);
+      // console.log('query email:', email);
+      // console.log('token email:', req.token_email);
       let query = {};
 
       if (email) {
@@ -122,7 +129,7 @@ async function run() {
     });
 
     app.post('/products', verifyFirebaseToken, async (req, res) => {
-      console.log('headers', req.headers);
+      // console.log('headers', req.headers);
       const newProduct = req.body;
       const result = await productsColl.insertOne(newProduct);
       res.send(result);
@@ -149,7 +156,8 @@ async function run() {
     // =================================================
     app.get('/bids', verifyFirebaseToken, async (req, res) => {
       const email = req.query.email;
-      // console.log(email);
+      // console.log('query email:', email);
+      // console.log('token email:', req.token_email);
       let query = {};
       if (email) {
         if (email !== req.token_email) {
